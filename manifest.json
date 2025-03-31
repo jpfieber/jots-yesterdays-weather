@@ -1,0 +1,10 @@
+{
+    "id": "yesterdays-weather-esm",
+    "name": "Yesterday's Weather ESM",
+    "version": "1.0.0",
+    "minAppVersion": "1.0.0",
+    "description": "Fetch yesterday's weather and update Obsidian notes.",
+    "author": "Your Name",
+    "authorUrl": "https://yourwebsite.com",
+    "isDesktopOnly": false
+}
