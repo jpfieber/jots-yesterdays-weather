@@ -4,7 +4,7 @@ Capture yesterdays weather to yesterdays daily journal.
 
 I like to use my daily journals not only to capture my thoughts and actions for a day, but to also capture some context of that day. Weather plays a part in this, so I wrote a plugin to 'archive' the weather conditions as properties on my journal pages. The weather data comes from [Visual Crossing](https://www.visualcrossing.com/weather-api), and is available via their API for free if you sign up for an account. With the weather data in my journal properties, I can just reference a single days weather by viewing that note, or I could use a plugin to create a report or chart to view the weather over time.
 
-<a href="https://www.buymeacoffee.com/n7Rd8LVmR9" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60"></a>
+<a href="https://www.buymeacoffee.com/jpfieber" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60"></a>
 
 ## Usage
 
@@ -30,4 +30,4 @@ While this plugin works on it's own in most any vault, it is part of a larger sy
 
 If this plugin helped you and you wish to contribute:
 
-<a href="https://www.buymeacoffee.com/n7Rd8LVmR9" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60"></a>
+<a href="https://www.buymeacoffee.com/jpfieber" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60"></a>
