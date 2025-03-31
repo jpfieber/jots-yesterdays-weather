@@ -1,10 +1,15 @@
 {
-    "id": "yesterdays-weather-esm",
-    "name": "Yesterday's Weather ESM",
+    "id": "jots-yesterdays-weather",
+    "name": "JOTS - Yesterday's Weather",
     "version": "1.0.0",
     "minAppVersion": "1.0.0",
-    "description": "Fetch yesterday's weather and update Obsidian notes.",
-    "author": "Your Name",
+    "description": "Capture yesterdays weather to yesterdays Obsidian daily journal.",
+    "author": "Joseph Fieber",
     "authorUrl": "https://yourwebsite.com",
+    "fundingUrl": {
+        "Buy Me a Coffee": "https://www.buymeacoffee.com/n7Rd8LVmR9",
+        "GitHub Sponsors": "https://github.com/sponsors/jpfieber",
+        "PayPal": "https://www.paypal.biz/jpfieber"
+    },
     "isDesktopOnly": false
 }
