@@ -189,5 +189,66 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
                         }));
             }
         }
+
+        containerEl.createEl('hr');
+        this.addWebsiteSection(containerEl);
+        this.addCoffeeSection(containerEl);
+    }
+
+    private addWebsiteSection(containerEl: HTMLElement) {
+        const websiteDiv = containerEl.createEl('div', { cls: 'website-section' });
+        websiteDiv.style.display = 'flex';
+        websiteDiv.style.alignItems = 'center';
+        websiteDiv.style.marginTop = '20px';
+        websiteDiv.style.marginBottom = '20px';
+        websiteDiv.style.padding = '0.5rem';
+        websiteDiv.style.opacity = '0.75';
+
+        const logoLink = websiteDiv.createEl('a', {
+            href: 'https://jots.life',
+            target: '_blank',
+        });
+        const logoImg = logoLink.createEl('img', {
+            attr: {
+                src: 'https://jots.life/jots-logo-512/',
+                alt: 'JOTS Logo',
+            },
+        });
+        logoImg.style.width = '64px';
+        logoImg.style.height = '64px';
+        logoImg.style.marginRight = '15px';
+
+        websiteDiv.appendChild(logoLink);
+
+        const descriptionDiv = websiteDiv.createEl('div', { cls: 'website-description' });
+        descriptionDiv.innerHTML = `
+            While Yesterday's Weather works on its own, it is part of a system called 
+            <a href="https://jots.life" target="_blank">JOTS</a> that helps capture, organize, 
+            and visualize your life's details.
+        `;
+        descriptionDiv.style.fontSize = '14px';
+        descriptionDiv.style.lineHeight = '1.5';
+        descriptionDiv.style.color = '#555';
+
+        websiteDiv.appendChild(descriptionDiv);
+        containerEl.appendChild(websiteDiv);
+    }
+
+    private addCoffeeSection(containerEl: HTMLElement) {
+        const coffeeDiv = containerEl.createEl('div', { cls: 'buy-me-a-coffee' });
+        coffeeDiv.style.marginTop = '20px';
+        coffeeDiv.style.textAlign = 'center';
+
+        coffeeDiv.innerHTML = `
+            <a href="https://www.buymeacoffee.com/jpfieber" target="_blank">
+                <img 
+                    src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" 
+                    alt="Buy Me A Coffee" 
+                    style="height: 60px; width: 217px;"
+                />
+            </a>
+        `;
+
+        containerEl.appendChild(coffeeDiv);
     }
 }

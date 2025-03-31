@@ -1,6 +1,6 @@
 {
     "id": "jots-yesterdays-weather",
-    "name": "JOTS - Yesterday's Weather",
+    "name": "Yesterday's Weather",
     "version": "1.0.0",
     "minAppVersion": "1.0.0",
     "description": "Capture yesterdays weather to yesterdays Obsidian daily journal.",

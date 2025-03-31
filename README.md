@@ -1,6 +1,6 @@
-# JOTS - Yesterdays Weather
+# Yesterday's Weather
 
-Capture yesterdays weather to yesterdays daily journal.
+Capture yesterday's weather to yesterday's daily journal.
 
 I like to use my daily journals not only to capture my thoughts and actions for a day, but to also capture some context of that day. Weather plays a part in this, so I wrote a plugin to 'archive' the weather conditions as properties on my journal pages. The weather data comes from [Visual Crossing](https://www.visualcrossing.com/weather-api), and is available via their API for free if you sign up for an account. With the weather data in my journal properties, I can just reference a single days weather by viewing that note, or I could use a plugin to create a report or chart to view the weather over time.
 
