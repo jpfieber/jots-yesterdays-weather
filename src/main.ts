@@ -4,6 +4,8 @@ import { fetchWeatherForDate, scheduleDailyRun } from './weather.ts';
 
 export default class YesterdaysWeatherPlugin extends Plugin {
     async onload() {
+        console.log('Yesterday\'s Weather: Loading plugin');
+
         await this.loadSettings();
         this.addSettingTab(new YesterdaysWeatherSettingTab(this.app, this));
 
@@ -17,7 +19,7 @@ export default class YesterdaysWeatherPlugin extends Plugin {
     }
 
     onunload() {
-        console.log('Unloading plugin');
+        console.log('Yesterday\'s Weather: Unloading plugin');
         if (this.dailyTimeout) {
             clearTimeout(this.dailyTimeout);
         }
