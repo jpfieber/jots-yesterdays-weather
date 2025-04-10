@@ -26,11 +26,8 @@ jobs:
       - name: Build plugin
         run: npm run build
 
-      - name: Copy files for release
-        run: |
-          cp dist/main.js .
-          cp manifest.json .
-          cp styles.css .
+      - name: Copy build output
+        run: cp dist/main.js .
 
       - name: Create release
         env:
