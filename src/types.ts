@@ -5,7 +5,7 @@ interface PropertySettings {
     name: string;
 }
 
-interface YesterdaysWeatherSettings {
+export interface YesterdaysWeatherSettings {
     apiKey: string;
     location: string;
     journalRoot: string;
