@@ -1,13 +1,47 @@
-import { requestUrl, normalizePath, parseYaml, stringifyYaml } from 'obsidian';
+import { requestUrl, normalizePath, parseYaml, stringifyYaml, Notice } from 'obsidian';
+import type { YesterdaysWeatherPlugin } from './types';
+
+interface WeatherData {
+    days: Array<{
+        tempmax: number;
+        tempmin: number;
+        temp: number;
+        feelslikemax: number;
+        feelslikemin: number;
+        feelslike: number;
+        dew: number;
+        humidity: number;
+        precip: number;
+        preciptype?: string[];
+        snow: number;
+        snowdepth: number;
+        windgust: number;
+        windspeed: number;
+        winddir: number;
+        pressure: number;
+        cloudcover: number;
+        visibility: number;
+        solarradiation: number;
+        solarenergy: number;
+        uvindex: number;
+        severerisk: number;
+        sunrise: string;
+        sunset: string;
+        moonphase: number;
+        conditions?: string[];
+        description: string;
+        icon: string;
+    }>;
+}
 
 /**
  * Fetch weather data for a specific date.
- * @param {Object} plugin - The plugin instance.
+ * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
  * @param {Date} date - The date for which to fetch weather data.
  */
-export async function fetchWeatherForDate(plugin, date) {
+export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date: Date) {
     if (!plugin.settings || !plugin.settings.apiKey || !plugin.settings.location) {
-        console.error("Settings are not properly configured.");
+        new Notice('Please configure your API key and location in the settings.');
         return;
     }
 
@@ -15,21 +49,29 @@ export async function fetchWeatherForDate(plugin, date) {
     const apiUrl = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${plugin.settings.location}/${dateString}/${dateString}?unitGroup=us&include=days&key=${plugin.settings.apiKey}&contentType=json`;
 
     try {
+        new Notice('Fetching weather data...');
         const response = await requestUrl({ url: apiUrl });
         const weatherData = response.json;
         await updateNoteWithWeatherData(plugin, date, weatherData);
+        new Notice('Weather data successfully added to note');
     } catch (error) {
         console.error("Error retrieving weather data:", error);
+        new Notice('Failed to fetch weather data. Please check your API key and location.');
     }
 }
 
 /**
  * Update a note with weather data.
- * @param {Object} plugin - The plugin instance.
+ * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
  * @param {Date} date - The date for which the weather data applies.
- * @param {Object} data - The weather data to insert into the note.
+ * @param {WeatherData} data - The weather data to insert into the note.
  */
-export async function updateNoteWithWeatherData(plugin, date, data) {
+export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin, date: Date, data: WeatherData) {
+    if (!data || !data.days || !data.days[0]) {
+        new Notice('Invalid weather data received');
+        return;
+    }
+
     const year = date.getFullYear();
     const yearShort = String(year).slice(-2);
     const month = String(date.getMonth() + 1).padStart(2, '0');
