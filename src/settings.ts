@@ -14,9 +14,6 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty(); // Clear the container before rendering
 
-        // Plugin Settings Header
-        containerEl.createEl('h1', { text: 'Plugin Settings' });
-
         // API Key Setting
         new Setting(containerEl)
             .setName('API Key')
