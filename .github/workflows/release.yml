@@ -26,6 +26,12 @@ jobs:
       - name: Build plugin
         run: npm run build
 
+      - name: Copy files for release
+        run: |
+          cp dist/main.js .
+          cp manifest.json .
+          cp styles.css .
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
