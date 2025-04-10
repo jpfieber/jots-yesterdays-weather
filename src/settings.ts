@@ -1,7 +1,8 @@
-import { App, PluginSettingTab, Setting, TFolder } from 'obsidian';
+import { App, PluginSettingTab, Setting } from 'obsidian';
 import { debounce } from './utils';
 import { fetchWeatherForDate } from './weather';
-import { FolderSuggest } from './folder-suggest';
+import { FolderSuggest } from "./foldersuggester";
+
 
 export class YesterdaysWeatherSettingTab extends PluginSettingTab {
     constructor(app, plugin) {
@@ -44,23 +45,18 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Journal Root')
             .setDesc('Enter the root folder where the journal entries should be saved.')
-            .addText(text => {
-                text.setPlaceholder('Enter journal root folder')
-                    .setValue(this.plugin.settings.journalRoot);
-                new FolderSuggest(
-                    this.app, 
-                    text.inputEl,
-                    async (folder) => {
-                        text.setValue(folder);
-                        this.plugin.settings.journalRoot = folder;
-                        await this.plugin.saveSettings();
-                    }
-                );
-                text.onChange(async (value) => {
-                    this.plugin.settings.journalRoot = value;
-                    await this.plugin.saveSettings();
-                });
-                return text;
+            .addSearch((cb) => {
+                new FolderSuggest(this.app, cb.inputEl);
+                cb.setPlaceholder("Enter journal root folder")
+                    .setValue(this.plugin.settings.journalRoot)
+                    .onChange((new_folder) => {
+                        // Trim folder and strip ending slash
+                        new_folder = new_folder.trim();
+                        new_folder = new_folder.replace(/\/$/, "");
+
+                        this.plugin.settings.journalRoot = new_folder;
+                        this.plugin.saveSettings();
+                    });
             });
 
         // Journal Subdirectory Setting
@@ -113,7 +109,7 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
                         this.plugin.settings.specificDate = value;
                         await this.plugin.saveSettings();
                     });
-                });
+            });
 
         new Setting(containerEl)
             .setName('Fetch Weather for Specific Date')
@@ -197,12 +193,12 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
 
     private addWebsiteSection(containerEl: HTMLElement) {
         const websiteDiv = containerEl.createEl('div', { cls: 'website-section' });
-        
+
         const logoLink = websiteDiv.createEl('a', {
             href: 'https://jots.life',
             target: '_blank',
         });
-        
+
         logoLink.createEl('img', {
             attr: {
                 src: 'https://jots.life/jots-logo-512/',
@@ -211,7 +207,7 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
         });
 
         const descriptionDiv = websiteDiv.createEl('div', { cls: 'website-description' });
-        
+
         // Create text nodes and links using createEl
         descriptionDiv.appendText('While this plugin works on its own, it is part of a system called ');
         descriptionDiv.createEl('a', {
@@ -224,7 +220,7 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
 
     private addCoffeeSection(containerEl: HTMLElement) {
         const coffeeDiv = containerEl.createEl('div', { cls: 'buy-me-a-coffee' });
-        
+
         const coffeeLink = coffeeDiv.createEl('a', {
             href: 'https://www.buymeacoffee.com/jpfieber',
             target: '_blank'

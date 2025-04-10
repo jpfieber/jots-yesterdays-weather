@@ -1,8 +1,6 @@
 import { Plugin } from 'obsidian';
-import { PluginSettingTab, Setting, TFolder } from 'obsidian';
-import { FolderSuggest } from './folder-suggest';
-import { YesterdaysWeatherSettingTab } from './settings.ts';
-import { fetchWeatherForDate, scheduleDailyRun } from './weather.ts';
+import { YesterdaysWeatherSettingTab } from './settings';
+import { fetchWeatherForDate, scheduleDailyRun } from './weather';
 
 export default class YesterdaysWeatherPlugin extends Plugin {
     async onload() {
