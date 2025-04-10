@@ -1,6 +1,6 @@
 {
   "name": "jots-yesterdays-weather",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Capture yesterdays weather to yesterdays Obsidian daily journal.",
   "main": "dist/main.js",
   "module": "dist/main.js",

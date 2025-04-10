@@ -1,6 +1,7 @@
 import { Plugin } from 'obsidian';
-import { scheduleDailyRun } from './weather.js';
-import type { YesterdaysWeatherSettings } from './types.js';
+import { scheduleDailyRun, fetchWeatherForDate } from './weather';
+import { YesterdaysWeatherSettingTab } from './settings';
+import type { YesterdaysWeatherSettings } from './types';
 
 const DEFAULT_SETTINGS: YesterdaysWeatherSettings = {
     apiKey: '',
@@ -58,16 +59,14 @@ export default class YesterdaysWeatherPlugin extends Plugin {
             id: 'yesterdays-weather',
             name: 'Fetch Yesterday\'s Weather',
             callback: async () => {
-                // Lazy load the weather module only when needed
-                const { fetchWeatherForDate } = await import('./weather.js');
                 const yesterdayDate = new Date();
                 yesterdayDate.setDate(yesterdayDate.getDate() - 1);
                 await fetchWeatherForDate(this, yesterdayDate);
             }
         });
 
-        // Lazy load settings tab
-        this.addSettingTab(await this.createSettingTab());
+        // Add settings tab
+        this.addSettingTab(new YesterdaysWeatherSettingTab(this.app, this));
 
         // Schedule the daily run if configured
         if (this.settings.runTime) {
@@ -82,11 +81,6 @@ export default class YesterdaysWeatherPlugin extends Plugin {
         if (this.dailyInterval) {
             clearTimeout(this.dailyInterval);
         }
-    }
-
-    private async createSettingTab() {
-        const { YesterdaysWeatherSettingTab } = await import('./settings.js');
-        return new YesterdaysWeatherSettingTab(this.app, this);
     }
 
     async loadSettings() {
