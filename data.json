@@ -121,15 +121,6 @@
     }
   },
   "generalProperties": {
-    "fileClass": {
-      "enabled": true,
-      "name": "fileClass",
-      "value": "Journal"
-    },
-    "filename": {
-      "enabled": true,
-      "name": "filename"
-    },
     "location": {
       "enabled": true,
       "name": "location"

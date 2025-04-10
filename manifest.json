@@ -1,7 +1,7 @@
 {
     "id": "jots-yesterdays-weather",
     "name": "Yesterday's Weather",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "minAppVersion": "1.0.0",
     "description": "Capture yesterdays weather to yesterdays Obsidian daily journal.",
     "author": "Joseph Fieber",
@@ -11,5 +11,6 @@
         "GitHub Sponsors": "https://github.com/sponsors/jpfieber",
         "PayPal": "https://www.paypal.biz/jpfieber"
     },
-    "isDesktopOnly": false
+    "isDesktopOnly": false,
+    "main": "main.js"
 }

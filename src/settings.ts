@@ -1,6 +1,7 @@
-import { PluginSettingTab, Setting } from 'obsidian';
-import { debounce } from './utils.ts';
-import { fetchWeatherForDate } from './weather.ts';
+import { App, PluginSettingTab, Setting, TFolder } from 'obsidian';
+import { debounce } from './utils';
+import { fetchWeatherForDate } from './weather';
+import { FolderSuggest } from './folder-suggest';
 
 export class YesterdaysWeatherSettingTab extends PluginSettingTab {
     constructor(app, plugin) {
@@ -43,13 +44,24 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Journal Root')
             .setDesc('Enter the root folder where the journal entries should be saved.')
-            .addText(text => text
-                .setPlaceholder('Enter journal root folder')
-                .setValue(this.plugin.settings.journalRoot)
-                .onChange(async (value) => {
+            .addText(text => {
+                text.setPlaceholder('Enter journal root folder')
+                    .setValue(this.plugin.settings.journalRoot);
+                new FolderSuggest(
+                    this.app, 
+                    text.inputEl,
+                    async (folder) => {
+                        text.setValue(folder);
+                        this.plugin.settings.journalRoot = folder;
+                        await this.plugin.saveSettings();
+                    }
+                );
+                text.onChange(async (value) => {
                     this.plugin.settings.journalRoot = value;
                     await this.plugin.saveSettings();
-                }));
+                });
+                return text;
+            });
 
         // Journal Subdirectory Setting
         new Setting(containerEl)
@@ -146,18 +158,6 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
                             await this.plugin.saveSettings();
                         }));
 
-                if (key === 'fileClass') {
-                    new Setting(containerEl)
-                        .setName(`${key} Value`)
-                        .setDesc(`Set the value for ${key}`)
-                        .addText(text => text
-                            .setPlaceholder(`Enter value for ${key}`)
-                            .setValue(value.value)
-                            .onChange(async (val) => {
-                                this.plugin.settings.generalProperties[key].value = val;
-                                await this.plugin.saveSettings();
-                            }));
-                }
             }
         }
 
@@ -197,58 +197,45 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
 
     private addWebsiteSection(containerEl: HTMLElement) {
         const websiteDiv = containerEl.createEl('div', { cls: 'website-section' });
-        websiteDiv.style.display = 'flex';
-        websiteDiv.style.alignItems = 'center';
-        websiteDiv.style.marginTop = '20px';
-        websiteDiv.style.marginBottom = '20px';
-        websiteDiv.style.padding = '0.5rem';
-        websiteDiv.style.opacity = '0.75';
-
+        
         const logoLink = websiteDiv.createEl('a', {
             href: 'https://jots.life',
             target: '_blank',
         });
-        const logoImg = logoLink.createEl('img', {
+        
+        logoLink.createEl('img', {
             attr: {
                 src: 'https://jots.life/jots-logo-512/',
                 alt: 'JOTS Logo',
             },
         });
-        logoImg.style.width = '64px';
-        logoImg.style.height = '64px';
-        logoImg.style.marginRight = '15px';
-
-        websiteDiv.appendChild(logoLink);
 
         const descriptionDiv = websiteDiv.createEl('div', { cls: 'website-description' });
-        descriptionDiv.innerHTML = `
-            While Yesterday's Weather works on its own, it is part of a system called 
-            <a href="https://jots.life" target="_blank">JOTS</a> that helps capture, organize, 
-            and visualize your life's details.
-        `;
-        descriptionDiv.style.fontSize = '14px';
-        descriptionDiv.style.lineHeight = '1.5';
-        descriptionDiv.style.color = '#555';
-
-        websiteDiv.appendChild(descriptionDiv);
-        containerEl.appendChild(websiteDiv);
+        
+        // Create text nodes and links using createEl
+        descriptionDiv.appendText('While this plugin works on its own, it is part of a system called ');
+        descriptionDiv.createEl('a', {
+            text: 'JOTS',
+            href: 'https://jots.life',
+            target: '_blank'
+        });
+        descriptionDiv.appendText(' that helps capture, organize, and visualize your life\'s details.');
     }
 
     private addCoffeeSection(containerEl: HTMLElement) {
         const coffeeDiv = containerEl.createEl('div', { cls: 'buy-me-a-coffee' });
-        coffeeDiv.style.marginTop = '20px';
-        coffeeDiv.style.textAlign = 'center';
+        
+        const coffeeLink = coffeeDiv.createEl('a', {
+            href: 'https://www.buymeacoffee.com/jpfieber',
+            target: '_blank'
+        });
 
-        coffeeDiv.innerHTML = `
-            <a href="https://www.buymeacoffee.com/jpfieber" target="_blank">
-                <img 
-                    src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" 
-                    alt="Buy Me A Coffee" 
-                    style="height: 60px; width: 217px;"
-                />
-            </a>
-        `;
-
-        containerEl.appendChild(coffeeDiv);
+        coffeeLink.createEl('img', {
+            attr: {
+                src: 'https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png',
+                alt: 'Buy Me A Coffee'
+            },
+            cls: 'bmc-button'
+        });
     }
 }

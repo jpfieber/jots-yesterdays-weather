@@ -102,7 +102,6 @@ export async function updateNoteWithWeatherData(plugin, date, data) {
     };
 
     const requiredProperties = {
-        fileClass: 'Journal',
         filename: noteName,
         created: new Date().toISOString(),
         location: plugin.settings.location,

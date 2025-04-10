@@ -1,4 +1,6 @@
 import { Plugin } from 'obsidian';
+import { PluginSettingTab, Setting, TFolder } from 'obsidian';
+import { FolderSuggest } from './folder-suggest';
 import { YesterdaysWeatherSettingTab } from './settings.ts';
 import { fetchWeatherForDate, scheduleDailyRun } from './weather.ts';
 
@@ -62,8 +64,6 @@ export default class YesterdaysWeatherPlugin extends Plugin {
         };
 
         const defaultGeneralProperties = {
-            fileClass: { enabled: true, name: 'fileClass', value: 'Journal' },
-            filename: { enabled: true, name: 'filename' },
             location: { enabled: true, name: 'location' },
         };
 

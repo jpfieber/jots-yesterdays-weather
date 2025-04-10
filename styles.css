@@ -1,0 +1,70 @@
+/* Folder suggestion specific styles */
+.jots-folder-suggestion-container {
+    position: absolute;
+    z-index: 9999;
+    width: 100%;
+    height: 0;
+    pointer-events: none;
+}
+
+.jots-folder-suggestion-dropdown {
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 5px;
+    max-height: 200px;
+    overflow-y: auto;
+    position: fixed;
+    box-shadow: 0 2px 8px var(--background-modifier-box-shadow);
+    pointer-events: auto;
+    min-width: 300px;
+}
+
+.jots-folder-suggestion-item {
+    padding: 2px 8px;
+    cursor: pointer;
+    color: var(--text-normal);
+    border-radius: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+}
+
+.jots-folder-suggestion-item:hover,
+.jots-folder-suggestion-item.is-selected {
+    background-color: var(--background-modifier-hover);
+}
+
+/* Website Section Styles */
+.website-section {
+    display: flex;
+    align-items: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 0.5rem;
+    opacity: 0.75;
+}
+
+.website-section img {
+    width: 64px;
+    height: 64px;
+    margin-right: 15px;
+}
+
+.website-description {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+/* Buy Me a Coffee Section */
+.buy-me-a-coffee {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.bmc-button {
+    height: 60px;
+    width: 217px;
+}
