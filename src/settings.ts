@@ -29,6 +29,18 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        // Template Path Setting
+        new Setting(containerEl)
+            .setName('Template File Path')
+            .setDesc('Path to the template file (relative to vault root)')
+            .addText((text: TextComponent) => text
+                .setPlaceholder('templates/daily-note.md')
+                .setValue(this.plugin.settings.templatePath)
+                .onChange(async (value: string) => {
+                    this.plugin.settings.templatePath = value;
+                    await this.plugin.saveSettings();
+                }));
+
         // Location Setting
         new Setting(containerEl)
             .setName('Location')

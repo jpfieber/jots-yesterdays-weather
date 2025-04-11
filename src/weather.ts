@@ -1,5 +1,6 @@
 import { requestUrl, normalizePath, parseYaml, stringifyYaml, Notice } from 'obsidian';
 import type { YesterdaysWeatherPlugin } from './types';
+import * as moment from 'moment';
 
 interface WeatherData {
     days: Array<{
@@ -60,6 +61,29 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
     }
 }
 
+async function processTemplate(plugin: YesterdaysWeatherPlugin, date: Date, templateContent: string): Promise<string> {
+    const tp = {
+        date: {
+            now: (format: string) => moment.default().format(format)
+        },
+        file: {
+            title: moment.default(date).format('YYYY-MM-DD_ddd')
+        }
+    };
+
+    // Replace template tags
+    return templateContent.replace(/<%\s*(.*?)\s*%>/g, (match, expression) => {
+        try {
+            // Safely evaluate the expression in the context of tp
+            const result = new Function('tp', 'moment', `return ${expression}`)(tp, moment.default);
+            return result !== undefined ? result : match;
+        } catch (error) {
+            console.error(`Error processing template expression: ${expression}`, error);
+            return match;
+        }
+    });
+}
+
 /**
  * Update a note with weather data.
  * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
@@ -96,8 +120,8 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
         'D': dayUnpad
     };
 
-    const replacePlaceholders = (str) => {
-        return str.replace(/YYYY|YY|MMMM|MMM|MM|M|DDDD|DDD|DD|D/g, (match) => placeholders[match]);
+    const replacePlaceholders = (str: string) => {
+        return str.replace(/YYYY|YY|MMMM|MMM|MM|M|DDDD|DDD|DD|D/g, (match: string) => String(placeholders[match as keyof typeof placeholders] || match));
     };
 
     // Use the journal name format setting
@@ -109,7 +133,6 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
     }
 
     const journalSubdir = replacePlaceholders(plugin.settings.journalSubdir);
-
     const notePath = normalizePath(`${plugin.settings.journalRoot}/${journalSubdir}/${noteName}`);
 
     const weatherProperties = {
@@ -149,14 +172,14 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
         location: plugin.settings.location,
     };
 
-    const selectedProperties = {};
+    const selectedProperties: Record<string, any> = {};
     for (const [key, value] of Object.entries(weatherProperties)) {
         if (plugin.settings.properties[key] && plugin.settings.properties[key].enabled) {
             selectedProperties[plugin.settings.properties[key].name] = value;
         }
     }
 
-    const selectedGeneralProperties = {};
+    const selectedGeneralProperties: Record<string, any> = {};
     for (const [key, value] of Object.entries(requiredProperties)) {
         if (plugin.settings.generalProperties[key] && plugin.settings.generalProperties[key].enabled) {
             selectedGeneralProperties[plugin.settings.generalProperties[key].name] = value;
@@ -177,6 +200,7 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
 
                 if (existingYaml.wtrdescription) {
                     console.log("Weather data already exists in the note.");
+                    new Notice('Weather data already exists in the note.');
                     return;
                 }
 
@@ -194,16 +218,58 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
                 console.log("Weather data added to the existing note.");
             }
         } else {
-            const requiredYaml = stringifyYaml(selectedGeneralProperties).trim();
-            const weatherYaml = stringifyYaml(selectedProperties).trim();
-            const weatherYAML = `---
+            let content;
+            if (plugin.settings.templatePath) {
+                try {
+                    const templateExists = await plugin.app.vault.adapter.exists(plugin.settings.templatePath);
+                    if (templateExists) {
+                        const templateContent = await plugin.app.vault.adapter.read(plugin.settings.templatePath);
+                        content = await processTemplate(plugin, date, templateContent);
+
+                        // Add weather data to template
+                        if (content.includes('---')) {
+                            const lines = content.split('\n');
+                            const firstYamlIndex = lines.indexOf('---');
+                            const secondYamlIndex = lines.indexOf('---', firstYamlIndex + 1);
+
+                            if (firstYamlIndex !== -1 && secondYamlIndex !== -1) {
+                                const yamlContent = lines.slice(firstYamlIndex + 1, secondYamlIndex).join('\n');
+                                const existingYaml = parseYaml(yamlContent);
+                                const updatedYaml = { ...existingYaml, ...selectedProperties, ...selectedGeneralProperties };
+                                const updatedYamlContent = stringifyYaml(updatedYaml).trim();
+
+                                content = [
+                                    '---',
+                                    updatedYamlContent,
+                                    '---',
+                                    ...lines.slice(secondYamlIndex + 1)
+                                ].join('\n');
+                            }
+                        } else {
+                            // If template doesn't have YAML frontmatter, add it
+                            const weatherYAML = `---\n${stringifyYaml({ ...selectedGeneralProperties, ...selectedProperties }).trim()}\n---\n`;
+                            content = weatherYAML + content;
+                        }
+                    } else {
+                        new Notice(`Template file not found: ${plugin.settings.templatePath}`);
+                    }
+                } catch (error) {
+                    console.error("Error reading template file:", error);
+                    new Notice('Error reading template file');
+                }
+            }
+
+            if (!content) {
+                const requiredYaml = stringifyYaml(selectedGeneralProperties).trim();
+                const weatherYaml = stringifyYaml(selectedProperties).trim();
+                const weatherYAML = `---
 ${requiredYaml}
 ${weatherYaml}
 ---`;
 
-            const title = `# ${dayOfWeekLong}, ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
-
-            const content = `${weatherYAML}\n\n${title}`;
+                const title = `# ${dayOfWeekLong}, ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+                content = `${weatherYAML}\n\n${title}`;
+            }
 
             await plugin.app.vault.adapter.mkdir(normalizePath(`${plugin.settings.journalRoot}/${journalSubdir}`));
             await plugin.app.vault.create(notePath, content);
@@ -218,7 +284,7 @@ ${weatherYaml}
  * Schedule a daily run of the plugin.
  * @param {Object} plugin - The plugin instance.
  */
-export function scheduleDailyRun(plugin) {
+export function scheduleDailyRun(plugin: YesterdaysWeatherPlugin) {
     if (!plugin.settings.runTime) {
         console.log('Run time not set. Skipping schedule.');
         return;
@@ -232,7 +298,7 @@ export function scheduleDailyRun(plugin) {
         nextRun.setDate(nextRun.getDate() + 1);
     }
 
-    const timeUntilNextRun = nextRun - now;
+    const timeUntilNextRun = nextRun.getTime() - now.getTime();
 
     plugin.dailyTimeout = setTimeout(() => {
         plugin.YesterdaysWeather();

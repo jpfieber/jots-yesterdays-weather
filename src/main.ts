@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS: YesterdaysWeatherSettings = {
     journalNameFormat: 'YYYY-MM-DD_DDD',
     runTime: '',
     specificDate: '',
+    templatePath: '',
     properties: {
         wtrtempmax: { enabled: true, name: 'wtrtempmax' },
         wtrtempmin: { enabled: true, name: 'wtrtempmin' },

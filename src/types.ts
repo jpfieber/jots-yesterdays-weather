@@ -13,6 +13,7 @@ export interface YesterdaysWeatherSettings {
     journalNameFormat: string;
     runTime: string;
     specificDate: string;
+    templatePath: string;
     properties: {
         [key: string]: PropertySettings;
     };
