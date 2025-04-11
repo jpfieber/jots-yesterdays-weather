@@ -2,6 +2,7 @@ import { App, PluginSettingTab, Setting, TextComponent, ButtonComponent, ToggleC
 import { debounce, isValidTimeFormat } from './utils';
 import { fetchWeatherForDate } from './weather';
 import { FolderSuggest } from "./foldersuggester";
+import { FileSuggest } from "./filesuggester";
 import type { YesterdaysWeatherPlugin } from './types';
 
 export class YesterdaysWeatherSettingTab extends PluginSettingTab {
@@ -33,13 +34,15 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Template File Path')
             .setDesc('Path to the template file (relative to vault root)')
-            .addText((text: TextComponent) => text
-                .setPlaceholder('templates/daily-note.md')
-                .setValue(this.plugin.settings.templatePath)
-                .onChange(async (value: string) => {
-                    this.plugin.settings.templatePath = value;
-                    await this.plugin.saveSettings();
-                }));
+            .addSearch((cb: SearchComponent) => {
+                new FileSuggest(this.app, cb.inputEl);
+                cb.setPlaceholder("templates/daily-note.md")
+                    .setValue(this.plugin.settings.templatePath)
+                    .onChange((new_path: string) => {
+                        this.plugin.settings.templatePath = new_path;
+                        this.plugin.saveSettings();
+                    });
+            });
 
         // Location Setting
         new Setting(containerEl)
