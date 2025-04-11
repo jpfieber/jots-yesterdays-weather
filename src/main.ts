@@ -60,8 +60,10 @@ export default class YesterdaysWeatherPlugin extends Plugin {
             id: 'yesterdays-weather',
             name: 'Fetch Yesterday\'s Weather',
             callback: async () => {
-                const yesterdayDate = new Date();
-                yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+                // Create yesterday's date while preserving current time
+                const now = new Date();
+                const yesterdayDate = new Date(now);
+                yesterdayDate.setDate(now.getDate() - 1);
                 await fetchWeatherForDate(this, yesterdayDate);
             }
         });

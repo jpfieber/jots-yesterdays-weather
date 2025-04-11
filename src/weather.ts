@@ -36,6 +36,13 @@ interface WeatherData {
 }
 
 /**
+ * Get local date string in YYYY-MM-DD format
+ */
+function getLocalDateString(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
  * Fetch weather data for a specific date.
  * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
  * @param {Date} date - The date for which to fetch weather data.
@@ -46,7 +53,7 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
         return;
     }
 
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = getLocalDateString(date);
     const apiUrl = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${plugin.settings.location}/${dateString}/${dateString}?unitGroup=us&include=days&key=${plugin.settings.apiKey}&contentType=json`;
 
     try {

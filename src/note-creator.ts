@@ -13,27 +13,43 @@ export interface NoteMetadata {
 }
 
 /**
- * Process a template file with moment.js-style template tags
+ * Process a template file with Obsidian template variables
  */
 export async function processTemplate(app: App, date: Date, templateContent: string): Promise<string> {
-    const tp = {
-        date: {
-            now: (format: string) => moment.default().format(format)
-        },
-        file: {
-            title: moment.default(date).format('YYYY-MM-DD_ddd')
-        }
-    };
-
-    return templateContent.replace(/<%\s*(.*?)\s*%>/g, (match, expression) => {
-        try {
-            const result = new Function('tp', 'moment', `return ${expression}`)(tp, moment.default);
-            return result !== undefined ? result : match;
-        } catch (error) {
-            console.error(`Error processing template expression: ${expression}`, error);
-            return match;
-        }
+    // Use current moment for template variables
+    const now = moment.default();
+    
+    // Handle formatted date variables like {{date:YYYY-MM-DD}}
+    const dateContent = templateContent.replace(/{{date:([^}]+)}}/g, (match, format) => {
+        return now.format(format);
     });
+
+    // Handle formatted time variables like {{time:HH:mm}}
+    const timeContent = dateContent.replace(/{{time:([^}]+)}}/g, (match, format) => {
+        return now.format(format);
+    });
+
+    // Get the filename without extension for the title
+    const momentDate = moment.default(date);
+    const fileName = momentDate.format('YYYY-MM-DD_ddd');
+
+    return timeContent
+        .replace(/{{title}}/g, fileName)
+        // Use current time for unformatted date/time variables
+        .replace(/{{date}}/g, now.format('MMMM D, YYYY'))
+        .replace(/{{time}}/g, now.format('h:mm A'));
+}
+
+/**
+ * Get timezone offset in ISO format (e.g., '+05:00' or '-05:00')
+ */
+function getTimezoneOffset(date: Date): string {
+    const offset = -date.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const absOffset = Math.abs(offset);
+    const hours = String(Math.floor(absOffset / 60)).padStart(2, '0');
+    const minutes = String(absOffset % 60).padStart(2, '0');
+    return `${sign}${hours}:${minutes}`;
 }
 
 /**
@@ -123,6 +139,7 @@ async function updateExistingNote(app: App, notePath: string, metadata: NoteMeta
         ].join('\n');
 
         await app.vault.adapter.write(notePath, updatedContent);
+        new Notice(`Updated existing note: ${notePath}`);
     }
 }
 
@@ -168,6 +185,7 @@ async function createNewNote(
     const dirPath = notePath.substring(0, notePath.lastIndexOf('/'));
     await app.vault.adapter.mkdir(normalizePath(dirPath));
     await app.vault.create(notePath, content);
+    new Notice(`Created new note: ${notePath}`);
 }
 
 /**

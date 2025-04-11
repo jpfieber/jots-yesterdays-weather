@@ -14,6 +14,11 @@ You configure the plugin with your API key, your location, how to find your jour
 
 The main settings are in the Plugin Settings section:
 - **API Key** Enter your Visual Crossing API Key, which you can get by signing up at their website https://www.visualcrossing.com/weather-api
+- **Template File Path** Enter the path to the template you use to generate your Journal files. If no journal file exists when weather is being fetched for a date, a new journal will be created based on this template. Variables that work include:
+    - `{{title}}`
+    - `{{date}}`
+    - `{{time}}`
+    - Basic Templater date commands like `<% moment(tp.file.title,'YYYY-MM-DD_ddd').format("dddd, MMMM D, YYYY") %>`
 - **Location** Enter your location. Zipcode works as well as city names. You can test them at https://visualcrossing.com/weather-data to find the right one
 - **Journal Root** Enter the path to the root of your Journals. If you keep them all in a folder called "Journals" that resides in the root of your vault, you'd just enter `Journals`. If it's not at the root level, a path like `Content/Journals` works.
 - **Journal Subdirectory** If you divide your journals up by date, enter the pattern for your subdirectory structure. The default is YYYY/YYYY-MM, but you can use any combination of Y/M/D notation (YY/YYYY/M/MM/MMM/MMMM/D/DD/DDD/DDDD are all recognized).
