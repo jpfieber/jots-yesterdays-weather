@@ -1,6 +1,6 @@
-import { requestUrl, normalizePath, parseYaml, stringifyYaml, Notice } from 'obsidian';
+import { requestUrl, Notice } from 'obsidian';
 import type { YesterdaysWeatherPlugin } from './types';
-import * as moment from 'moment';
+import { createOrUpdateNote, NoteCreatorSettings } from './note-creator';
 
 interface WeatherData {
     days: Array<{
@@ -61,29 +61,6 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
     }
 }
 
-async function processTemplate(plugin: YesterdaysWeatherPlugin, date: Date, templateContent: string): Promise<string> {
-    const tp = {
-        date: {
-            now: (format: string) => moment.default().format(format)
-        },
-        file: {
-            title: moment.default(date).format('YYYY-MM-DD_ddd')
-        }
-    };
-
-    // Replace template tags
-    return templateContent.replace(/<%\s*(.*?)\s*%>/g, (match, expression) => {
-        try {
-            // Safely evaluate the expression in the context of tp
-            const result = new Function('tp', 'moment', `return ${expression}`)(tp, moment.default);
-            return result !== undefined ? result : match;
-        } catch (error) {
-            console.error(`Error processing template expression: ${expression}`, error);
-            return match;
-        }
-    });
-}
-
 /**
  * Update a note with weather data.
  * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
@@ -95,45 +72,6 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
         new Notice('Invalid weather data received');
         return;
     }
-
-    const year = date.getFullYear();
-    const yearShort = String(year).slice(-2);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const monthUnpad = String(date.getMonth() + 1);
-    const monthShort = date.toLocaleDateString('en-US', { month: 'short' });
-    const monthLong = date.toLocaleDateString('en-US', { month: 'long' });
-    const day = String(date.getDate()).padStart(2, '0');
-    const dayUnpad = String(date.getDate());
-    const dayOfWeekShort = date.toLocaleDateString('en-US', { weekday: 'short' });
-    const dayOfWeekLong = date.toLocaleDateString('en-US', { weekday: 'long' });
-
-    const placeholders = {
-        'YYYY': year,
-        'YY': yearShort,
-        'MMMM': monthLong,
-        'MMM': monthShort,
-        'MM': month,
-        'M': monthUnpad,
-        'DDDD': dayOfWeekLong,
-        'DDD': dayOfWeekShort,
-        'DD': day,
-        'D': dayUnpad
-    };
-
-    const replacePlaceholders = (str: string) => {
-        return str.replace(/YYYY|YY|MMMM|MMM|MM|M|DDDD|DDD|DD|D/g, (match: string) => String(placeholders[match as keyof typeof placeholders] || match));
-    };
-
-    // Use the journal name format setting
-    let noteName = replacePlaceholders(plugin.settings.journalNameFormat);
-
-    // Ensure the note name ends with .md
-    if (!noteName.endsWith('.md')) {
-        noteName += '.md';
-    }
-
-    const journalSubdir = replacePlaceholders(plugin.settings.journalSubdir);
-    const notePath = normalizePath(`${plugin.settings.journalRoot}/${journalSubdir}/${noteName}`);
 
     const weatherProperties = {
         wtrtempmax: data.days[0].tempmax,
@@ -166,117 +104,37 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
         wtricon: data.days[0].icon,
     };
 
-    const requiredProperties = {
-        filename: noteName,
-        created: new Date().toISOString(),
-        location: plugin.settings.location,
-    };
-
     const selectedProperties: Record<string, any> = {};
     for (const [key, value] of Object.entries(weatherProperties)) {
-        if (plugin.settings.properties[key] && plugin.settings.properties[key].enabled) {
+        if (plugin.settings.properties[key]?.enabled) {
             selectedProperties[plugin.settings.properties[key].name] = value;
         }
     }
 
-    const selectedGeneralProperties: Record<string, any> = {};
-    for (const [key, value] of Object.entries(requiredProperties)) {
-        if (plugin.settings.generalProperties[key] && plugin.settings.generalProperties[key].enabled) {
-            selectedGeneralProperties[plugin.settings.generalProperties[key].name] = value;
-        }
-    }
+    const noteMetadata = {
+        ...selectedProperties,
+        ...Object.fromEntries(
+            Object.entries({
+                filename: date.toISOString().split('T')[0] + '.md',
+                created: new Date().toISOString(),
+                location: plugin.settings.location,
+            }).filter(([key]) => plugin.settings.generalProperties[key]?.enabled)
+                .map(([key, value]) => [plugin.settings.generalProperties[key].name, value])
+        )
+    };
+
+    const noteSettings: NoteCreatorSettings = {
+        rootFolder: plugin.settings.journalRoot,
+        subFolder: plugin.settings.journalSubdir,
+        nameFormat: plugin.settings.journalNameFormat,
+        templatePath: plugin.settings.templatePath
+    };
 
     try {
-        const fileExists = await plugin.app.vault.adapter.exists(notePath);
-        if (fileExists) {
-            const fileContent = await plugin.app.vault.adapter.read(notePath);
-            const fileLines = fileContent.split('\n');
-            const yamlStartIndex = fileLines.indexOf('---');
-            const yamlEndIndex = fileLines.indexOf('---', yamlStartIndex + 1);
-
-            if (yamlStartIndex !== -1 && yamlEndIndex !== -1) {
-                const yamlContent = fileLines.slice(yamlStartIndex + 1, yamlEndIndex).join('\n');
-                const existingYaml = parseYaml(yamlContent);
-
-                if (existingYaml.wtrdescription) {
-                    console.log("Weather data already exists in the note.");
-                    new Notice('Weather data already exists in the note.');
-                    return;
-                }
-
-                const updatedYaml = { ...existingYaml, ...selectedProperties, ...selectedGeneralProperties };
-
-                const updatedYamlContent = stringifyYaml(updatedYaml).trim();
-                const updatedFileContent = [
-                    '---',
-                    updatedYamlContent,
-                    '---',
-                    ...fileLines.slice(yamlEndIndex + 1)
-                ].join('\n');
-
-                await plugin.app.vault.adapter.write(notePath, updatedFileContent);
-                console.log("Weather data added to the existing note.");
-            }
-        } else {
-            let content;
-            if (plugin.settings.templatePath) {
-                try {
-                    const templateExists = await plugin.app.vault.adapter.exists(plugin.settings.templatePath);
-                    if (templateExists) {
-                        const templateContent = await plugin.app.vault.adapter.read(plugin.settings.templatePath);
-                        content = await processTemplate(plugin, date, templateContent);
-
-                        // Add weather data to template
-                        if (content.includes('---')) {
-                            const lines = content.split('\n');
-                            const firstYamlIndex = lines.indexOf('---');
-                            const secondYamlIndex = lines.indexOf('---', firstYamlIndex + 1);
-
-                            if (firstYamlIndex !== -1 && secondYamlIndex !== -1) {
-                                const yamlContent = lines.slice(firstYamlIndex + 1, secondYamlIndex).join('\n');
-                                const existingYaml = parseYaml(yamlContent);
-                                const updatedYaml = { ...existingYaml, ...selectedProperties, ...selectedGeneralProperties };
-                                const updatedYamlContent = stringifyYaml(updatedYaml).trim();
-
-                                content = [
-                                    '---',
-                                    updatedYamlContent,
-                                    '---',
-                                    ...lines.slice(secondYamlIndex + 1)
-                                ].join('\n');
-                            }
-                        } else {
-                            // If template doesn't have YAML frontmatter, add it
-                            const weatherYAML = `---\n${stringifyYaml({ ...selectedGeneralProperties, ...selectedProperties }).trim()}\n---\n`;
-                            content = weatherYAML + content;
-                        }
-                    } else {
-                        new Notice(`Template file not found: ${plugin.settings.templatePath}`);
-                    }
-                } catch (error) {
-                    console.error("Error reading template file:", error);
-                    new Notice('Error reading template file');
-                }
-            }
-
-            if (!content) {
-                const requiredYaml = stringifyYaml(selectedGeneralProperties).trim();
-                const weatherYaml = stringifyYaml(selectedProperties).trim();
-                const weatherYAML = `---
-${requiredYaml}
-${weatherYaml}
----`;
-
-                const title = `# ${dayOfWeekLong}, ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
-                content = `${weatherYAML}\n\n${title}`;
-            }
-
-            await plugin.app.vault.adapter.mkdir(normalizePath(`${plugin.settings.journalRoot}/${journalSubdir}`));
-            await plugin.app.vault.create(notePath, content);
-            console.log("New note created with weather data.");
-        }
+        await createOrUpdateNote(plugin.app, date, noteSettings, noteMetadata);
     } catch (error) {
         console.error("Error creating or updating note:", error);
+        new Notice('Error creating or updating note');
     }
 }
 
