@@ -138,7 +138,6 @@ export async function createNewNote(
     // Create the file
     const file = await app.vault.create(notePath, content);
     new Notice(`Created new note: ${notePath}`);
-    console.log(content);
 
     return file;
 }

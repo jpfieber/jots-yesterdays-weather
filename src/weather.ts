@@ -1,7 +1,7 @@
-import { requestUrl, Notice, parseYaml, stringifyYaml, App, TFile } from 'obsidian';
+import { requestUrl, Notice, App, TFile } from 'obsidian';
 import type { YesterdaysWeatherPlugin } from './types';
 import { createNewNote, NoteCreatorSettings, getNotePath } from './note-creator';
-import { waitForFile, waitForMetadataCache } from './utils';
+import { waitForFile } from './utils';
 
 interface WeatherData {
     days: Array<{
@@ -89,7 +89,7 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
         const response = await requestUrl({ url: apiUrl });
         const weatherData = response.json;
 
-        await updateNoteWithWeatherData(plugin, file.path, weatherData);
+        await updateNoteWithWeatherData(plugin, file, weatherData);
     } catch (error) {
         console.error("Error in weather process:", error);
         new Notice('Failed to complete the weather process. Check the console for details.');
@@ -99,10 +99,10 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
 /**
  * Update a note with weather data.
  * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
- * @param {string} notePath - The path to the note to update.
+ * @param {TFile} file - The file to update.
  * @param {WeatherData} data - The weather data to insert into the note.
  */
-export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin, notePath: string, data: WeatherData) {
+export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin, file: TFile, data: WeatherData) {
     if (!data || !data.days || !data.days[0]) {
         new Notice('Invalid weather data received');
         return;
@@ -141,6 +141,13 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
 
     // Filter weather properties based on settings
     const selectedProperties: Record<string, any> = {};
+
+    // Add location if enabled
+    if (plugin.settings.generalProperties?.location?.enabled) {
+        selectedProperties[plugin.settings.generalProperties.location.name] = plugin.settings.location;
+    }
+
+    // Add weather properties if enabled
     for (const [key, value] of Object.entries(weatherProperties)) {
         if (plugin.settings.properties[key]?.enabled) {
             selectedProperties[plugin.settings.properties[key].name] = value;
@@ -148,52 +155,13 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
     }
 
     try {
-        // Get the file and ensure it exists
-        const file = await waitForFile(plugin.app, notePath);
-        if (!file) {
-            throw new Error('Could not find file');
-        }
-
-        // Read the file content
-        const content = await plugin.app.vault.read(file);
-
-        let bodyContent = content;
-        let existingFrontmatter = {};
-
-        // Extract existing frontmatter if present
-        if (content.startsWith('---\n')) {
-            const endOfFrontmatter = content.indexOf('---\n', 4);
-            if (endOfFrontmatter !== -1) {
-                try {
-                    const frontmatterText = content.slice(4, endOfFrontmatter);
-                    existingFrontmatter = parseYaml(frontmatterText) || {};
-                    bodyContent = content.slice(endOfFrontmatter + 4);
-                } catch (e) {
-                    console.warn('Error parsing existing frontmatter:', e);
-                }
-            }
-        }
-
-        // Merge the existing frontmatter with weather properties
-        const updatedFrontmatter = {
-            ...existingFrontmatter,
-            ...selectedProperties
-        };
-
-        // Create the new content with updated frontmatter
-        const newContent = `---\n${stringifyYaml(updatedFrontmatter)}---\n\n${bodyContent.trim()}`;
-
-        // Write the updated content back to the file
-        await plugin.app.vault.modify(file, newContent);
-
-        // Wait for metadata cache to be ready
-        const metadataReady = await waitForMetadataCache(plugin.app, file);
-        if (!metadataReady) {
-            throw new Error('Could not verify metadata cache update');
-        }
+        // Use Obsidian's built-in frontmatter processor
+        await plugin.app.fileManager.processFrontMatter(file, (frontmatter) => {
+            // Add or update properties in the frontmatter
+            Object.assign(frontmatter, selectedProperties);
+        });
 
         new Notice('Weather data successfully added to note');
-
     } catch (error) {
         console.error("Error updating note with weather data:", error);
         new Notice('Error updating note with weather data');
