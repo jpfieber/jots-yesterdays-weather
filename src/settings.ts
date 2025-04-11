@@ -133,11 +133,10 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
                 button.setButtonText('Fetch Weather')
                     .setCta()
                     .onClick(async () => {
-                        // Create date with current time
-                        const now = new Date();
-                        const date = new Date(this.plugin.settings.specificDate);
-                        date.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
-                        
+                        // Create the date using local date components to avoid timezone issues
+                        const [year, month, day] = this.plugin.settings.specificDate.split('-').map(Number);
+                        const date = new Date(year, month - 1, day, 12, 0, 0, 0); // month is 0-based in JS
+
                         if (date.toString() === 'Invalid Date') {
                             console.error("Invalid date format.");
                             return;

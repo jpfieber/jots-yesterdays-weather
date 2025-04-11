@@ -1,5 +1,6 @@
-import { App, normalizePath, parseYaml, stringifyYaml, Notice } from 'obsidian';
+import { App, normalizePath, Notice, TFile } from 'obsidian';
 import * as moment from 'moment';
+import { getTimezoneOffset } from './utils';
 
 export interface NoteCreatorSettings {
     rootFolder: string;
@@ -8,80 +9,64 @@ export interface NoteCreatorSettings {
     templatePath?: string;
 }
 
-export interface NoteMetadata {
-    [key: string]: any;
-}
-
 /**
  * Process a template file with Obsidian template variables
  */
-export async function processTemplate(app: App, date: Date, templateContent: string): Promise<string> {
-    // Use current moment for template variables
+async function processTemplate(app: App, date: Date, templateContent: string): Promise<string> {
+    // Use current moment for today's date/time variables
     const now = moment.default();
-    
-    // Handle formatted date variables like {{date:YYYY-MM-DD}}
-    const dateContent = templateContent.replace(/{{date:([^}]+)}}/g, (match, format) => {
+    // Use provided date for date/time variables
+    const momentDate = moment.default(date);
+
+    // Handle formatted target date variables like {{date:YYYY-MM-DD}}
+    let content = templateContent.replace(/{{date:([^}]+)}}/g, (match, format) => {
+        if (format === 'Z') {
+            return getTimezoneOffset(date);
+        }
+        return momentDate.format(format);
+    });
+
+    // Handle formatted target time variables like {{time:HH:mm}}
+    content = content.replace(/{{time:([^}]+)}}/g, (match, format) => {
+        if (format === 'Z') {
+            return getTimezoneOffset(date);
+        }
+        return momentDate.format(format);
+    });
+
+    // Handle formatted current date variables like {{tdate:YYYY-MM-DD}}
+    content = content.replace(/{{tdate:([^}]+)}}/g, (match, format) => {
+        if (format === 'Z') {
+            return getTimezoneOffset(new Date());
+        }
         return now.format(format);
     });
 
-    // Handle formatted time variables like {{time:HH:mm}}
-    const timeContent = dateContent.replace(/{{time:([^}]+)}}/g, (match, format) => {
+    // Handle formatted current time variables like {{ttime:HH:mm}}
+    content = content.replace(/{{ttime:([^}]+)}}/g, (match, format) => {
+        if (format === 'Z') {
+            return getTimezoneOffset(new Date());
+        }
         return now.format(format);
     });
 
     // Get the filename without extension for the title
-    const momentDate = moment.default(date);
     const fileName = momentDate.format('YYYY-MM-DD_ddd');
 
-    return timeContent
+    return content
         .replace(/{{title}}/g, fileName)
-        // Use current time for unformatted date/time variables
-        .replace(/{{date}}/g, now.format('MMMM D, YYYY'))
-        .replace(/{{time}}/g, now.format('h:mm A'));
-}
-
-/**
- * Get timezone offset in ISO format (e.g., '+05:00' or '-05:00')
- */
-function getTimezoneOffset(date: Date): string {
-    const offset = -date.getTimezoneOffset();
-    const sign = offset >= 0 ? '+' : '-';
-    const absOffset = Math.abs(offset);
-    const hours = String(Math.floor(absOffset / 60)).padStart(2, '0');
-    const minutes = String(absOffset % 60).padStart(2, '0');
-    return `${sign}${hours}:${minutes}`;
-}
-
-/**
- * Create or update a note with provided metadata
- */
-export async function createOrUpdateNote(
-    app: App,
-    date: Date,
-    settings: NoteCreatorSettings,
-    metadata: NoteMetadata,
-    updateExisting: boolean = true,
-    defaultContent?: string
-): Promise<void> {
-    const { notePath, noteName } = getNotePath(date, settings);
-
-    try {
-        const fileExists = await app.vault.adapter.exists(notePath);
-        if (fileExists && updateExisting) {
-            await updateExistingNote(app, notePath, metadata);
-        } else if (!fileExists) {
-            await createNewNote(app, date, notePath, settings, metadata, defaultContent);
-        }
-    } catch (error) {
-        console.error("Error creating or updating note:", error);
-        throw error;
-    }
+        // Use target date for date/time variables
+        .replace(/{{date}}/g, momentDate.format('MMMM D, YYYY'))
+        .replace(/{{time}}/g, momentDate.format('h:mm A'))
+        // Add new variables for current date/time
+        .replace(/{{tdate}}/g, now.format('MMMM D, YYYY'))
+        .replace(/{{ttime}}/g, now.format('h:mm A'));
 }
 
 /**
  * Get the full path for a note based on date and settings
  */
-function getNotePath(date: Date, settings: NoteCreatorSettings): { notePath: string, noteName: string } {
+export function getNotePath(date: Date, settings: NoteCreatorSettings): { notePath: string, noteName: string } {
     const placeholders = createDatePlaceholders(date);
     const noteName = replacePlaceholders(settings.nameFormat, placeholders) + (!settings.nameFormat.endsWith('.md') ? '.md' : '');
     const subFolder = replacePlaceholders(settings.subFolder, placeholders);
@@ -111,121 +96,56 @@ function createDatePlaceholders(date: Date) {
  * Replace date placeholders in a string
  */
 function replacePlaceholders(str: string, placeholders: Record<string, string | number>): string {
-    return str.replace(/YYYY|YY|MMMM|MMM|MM|M|DDDD|DDD|DD|D/g, 
+    return str.replace(/YYYY|YY|MMMM|MMM|MM|M|DDDD|DDD|DD|D/g,
         (match: string) => String(placeholders[match] || match)
     );
 }
 
 /**
- * Update an existing note with new metadata
- */
-async function updateExistingNote(app: App, notePath: string, metadata: NoteMetadata): Promise<void> {
-    const fileContent = await app.vault.adapter.read(notePath);
-    const fileLines = fileContent.split('\n');
-    const yamlStartIndex = fileLines.indexOf('---');
-    const yamlEndIndex = fileLines.indexOf('---', yamlStartIndex + 1);
-
-    if (yamlStartIndex !== -1 && yamlEndIndex !== -1) {
-        const yamlContent = fileLines.slice(yamlStartIndex + 1, yamlEndIndex).join('\n');
-        const existingYaml = parseYaml(yamlContent);
-        const updatedYaml = { ...existingYaml, ...metadata };
-        const updatedYamlContent = stringifyYaml(updatedYaml).trim();
-
-        const updatedContent = [
-            '---',
-            updatedYamlContent,
-            '---',
-            ...fileLines.slice(yamlEndIndex + 1)
-        ].join('\n');
-
-        await app.vault.adapter.write(notePath, updatedContent);
-        new Notice(`Updated existing note: ${notePath}`);
-    }
-}
-
-/**
  * Create a new note with template or default content
  */
-async function createNewNote(
+export async function createNewNote(
     app: App,
     date: Date,
     notePath: string,
     settings: NoteCreatorSettings,
-    metadata: NoteMetadata,
     defaultContent?: string
-): Promise<void> {
-    let content: string | undefined;
+): Promise<TFile> {
+    let content: string;
 
     if (settings.templatePath) {
         try {
-            const templateExists = await app.vault.adapter.exists(settings.templatePath);
-            if (templateExists) {
-                const templateContent = await app.vault.adapter.read(settings.templatePath);
+            const templateFile = app.vault.getAbstractFileByPath(settings.templatePath);
+            if (templateFile && templateFile instanceof TFile) {
+                const templateContent = await app.vault.read(templateFile);
                 content = await processTemplate(app, date, templateContent);
-                
-                // Add metadata to template
-                if (content.includes('---')) {
-                    content = updateTemplateYaml(content, metadata);
-                } else {
-                    content = addYamlToContent(content, metadata);
-                }
             } else {
-                new Notice(`Template file not found: ${settings.templatePath}`);
+                throw new Error(`Template file not found: ${settings.templatePath}`);
             }
         } catch (error) {
             console.error("Error reading template file:", error);
             new Notice('Error reading template file');
+            throw error;
         }
+    } else {
+        content = defaultContent || createDefaultContent(date);
     }
 
-    if (!content) {
-        content = defaultContent || createDefaultContent(date, metadata);
-    }
-
+    // Create the file's directory if it doesn't exist
     const dirPath = notePath.substring(0, notePath.lastIndexOf('/'));
     await app.vault.adapter.mkdir(normalizePath(dirPath));
-    await app.vault.create(notePath, content);
+
+    // Create the file
+    const file = await app.vault.create(notePath, content);
     new Notice(`Created new note: ${notePath}`);
-}
+    console.log(content);
 
-/**
- * Update YAML frontmatter in template content
- */
-function updateTemplateYaml(content: string, metadata: NoteMetadata): string {
-    const lines = content.split('\n');
-    const firstYamlIndex = lines.indexOf('---');
-    const secondYamlIndex = lines.indexOf('---', firstYamlIndex + 1);
-    
-    if (firstYamlIndex !== -1 && secondYamlIndex !== -1) {
-        const yamlContent = lines.slice(firstYamlIndex + 1, secondYamlIndex).join('\n');
-        const existingYaml = parseYaml(yamlContent);
-        const updatedYaml = { ...existingYaml, ...metadata };
-        const updatedYamlContent = stringifyYaml(updatedYaml).trim();
-        
-        return [
-            '---',
-            updatedYamlContent,
-            '---',
-            ...lines.slice(secondYamlIndex + 1)
-        ].join('\n');
-    }
-    
-    return content;
-}
-
-/**
- * Add YAML frontmatter to content that doesn't have it
- */
-function addYamlToContent(content: string, metadata: NoteMetadata): string {
-    const yaml = `---\n${stringifyYaml(metadata).trim()}\n---\n`;
-    return yaml + content;
+    return file;
 }
 
 /**
  * Create default content for a new note
  */
-function createDefaultContent(date: Date, metadata: NoteMetadata): string {
-    const yaml = stringifyYaml(metadata).trim();
-    const title = `# ${date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
-    return `---\n${yaml}\n---\n\n${title}`;
+function createDefaultContent(date: Date): string {
+    return `# ${date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
 }

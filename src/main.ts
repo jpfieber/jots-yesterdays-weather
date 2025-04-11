@@ -52,6 +52,17 @@ export default class YesterdaysWeatherPlugin extends Plugin {
     dailyTimeout?: NodeJS.Timeout;
     dailyInterval?: NodeJS.Timeout;
 
+    async YesterdaysWeather() {
+        // Create yesterday's date at noon to avoid timezone issues
+        const now = new Date();
+        const yesterdayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12, 0, 0, 0);
+        await fetchWeatherForDate(this, yesterdayDate);
+    }
+
+    scheduleDailyRun() {
+        scheduleDailyRun(this);
+    }
+
     async onload() {
         await this.loadSettings();
 
@@ -59,13 +70,7 @@ export default class YesterdaysWeatherPlugin extends Plugin {
         this.addCommand({
             id: 'yesterdays-weather',
             name: 'Fetch Yesterday\'s Weather',
-            callback: async () => {
-                // Create yesterday's date while preserving current time
-                const now = new Date();
-                const yesterdayDate = new Date(now);
-                yesterdayDate.setDate(now.getDate() - 1);
-                await fetchWeatherForDate(this, yesterdayDate);
-            }
+            callback: () => this.YesterdaysWeather()
         });
 
         // Add settings tab
@@ -73,7 +78,7 @@ export default class YesterdaysWeatherPlugin extends Plugin {
 
         // Schedule the daily run if configured
         if (this.settings.runTime) {
-            scheduleDailyRun(this);
+            this.scheduleDailyRun();
         }
     }
 

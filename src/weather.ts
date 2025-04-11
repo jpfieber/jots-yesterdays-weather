@@ -1,6 +1,7 @@
-import { requestUrl, Notice } from 'obsidian';
+import { requestUrl, Notice, parseYaml, stringifyYaml, App, TFile } from 'obsidian';
 import type { YesterdaysWeatherPlugin } from './types';
-import { createOrUpdateNote, NoteCreatorSettings } from './note-creator';
+import { createNewNote, NoteCreatorSettings, getNotePath } from './note-creator';
+import { waitForFile, waitForMetadataCache } from './utils';
 
 interface WeatherData {
     days: Array<{
@@ -43,6 +44,28 @@ function getLocalDateString(date: Date): string {
 }
 
 /**
+ * Create or get a note for the specified date
+ */
+async function getOrCreateNote(plugin: YesterdaysWeatherPlugin, date: Date): Promise<TFile> {
+    const noteSettings: NoteCreatorSettings = {
+        rootFolder: plugin.settings.journalRoot,
+        subFolder: plugin.settings.journalSubdir,
+        nameFormat: plugin.settings.journalNameFormat,
+        templatePath: plugin.settings.templatePath
+    };
+
+    const { notePath } = getNotePath(date, noteSettings);
+    const existingFile = plugin.app.vault.getAbstractFileByPath(notePath);
+
+    if (existingFile instanceof TFile) {
+        return existingFile;
+    }
+
+    // Create a new note using the template
+    return await createNewNote(plugin.app, date, notePath, noteSettings);
+}
+
+/**
  * Fetch weather data for a specific date.
  * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
  * @param {Date} date - The date for which to fetch weather data.
@@ -54,27 +77,32 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
     }
 
     const dateString = getLocalDateString(date);
-    const apiUrl = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${plugin.settings.location}/${dateString}/${dateString}?unitGroup=us&include=days&key=${plugin.settings.apiKey}&contentType=json`;
 
     try {
+        // First create or get the note
+        new Notice('Creating or getting note...');
+        const file = await getOrCreateNote(plugin, date);
+
+        // Then fetch and add weather data separately
         new Notice('Fetching weather data...');
+        const apiUrl = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${plugin.settings.location}/${dateString}/${dateString}?unitGroup=us&include=days&key=${plugin.settings.apiKey}&contentType=json`;
         const response = await requestUrl({ url: apiUrl });
         const weatherData = response.json;
-        await updateNoteWithWeatherData(plugin, date, weatherData);
-        new Notice('Weather data successfully added to note');
+
+        await updateNoteWithWeatherData(plugin, file.path, weatherData);
     } catch (error) {
-        console.error("Error retrieving weather data:", error);
-        new Notice('Failed to fetch weather data. Please check your API key and location.');
+        console.error("Error in weather process:", error);
+        new Notice('Failed to complete the weather process. Check the console for details.');
     }
 }
 
 /**
  * Update a note with weather data.
  * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
- * @param {Date} date - The date for which the weather data applies.
+ * @param {string} notePath - The path to the note to update.
  * @param {WeatherData} data - The weather data to insert into the note.
  */
-export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin, date: Date, data: WeatherData) {
+export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin, notePath: string, data: WeatherData) {
     if (!data || !data.days || !data.days[0]) {
         new Notice('Invalid weather data received');
         return;
@@ -90,7 +118,7 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
         wtrdew: data.days[0].dew,
         wtrhumidity: data.days[0].humidity,
         wtrprecip: data.days[0].precip,
-        wtrpreciptype: Array.isArray(data.days[0].preciptype) ? `['${data.days[0].preciptype.join("','")}']` : '',
+        wtrpreciptype: Array.isArray(data.days[0].preciptype) ? data.days[0].preciptype : [],
         wtrsnow: data.days[0].snow,
         wtrsnowdepth: data.days[0].snowdepth,
         wtrwindgust: data.days[0].windgust,
@@ -106,11 +134,12 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
         sunrise: data.days[0].sunrise,
         sunset: data.days[0].sunset,
         wtrmoonphase: data.days[0].moonphase,
-        wtrconditions: Array.isArray(data.days[0].conditions) ? `['${data.days[0].conditions.join("','")}']` : '',
+        wtrconditions: Array.isArray(data.days[0].conditions) ? data.days[0].conditions : [],
         wtrdescription: data.days[0].description,
         wtricon: data.days[0].icon,
     };
 
+    // Filter weather properties based on settings
     const selectedProperties: Record<string, any> = {};
     for (const [key, value] of Object.entries(weatherProperties)) {
         if (plugin.settings.properties[key]?.enabled) {
@@ -118,30 +147,57 @@ export async function updateNoteWithWeatherData(plugin: YesterdaysWeatherPlugin,
         }
     }
 
-    const noteMetadata = {
-        ...selectedProperties,
-        ...Object.fromEntries(
-            Object.entries({
-                filename: date.toISOString().split('T')[0] + '.md',
-                created: new Date().toISOString(),
-                location: plugin.settings.location,
-            }).filter(([key]) => plugin.settings.generalProperties[key]?.enabled)
-                .map(([key, value]) => [plugin.settings.generalProperties[key].name, value])
-        )
-    };
-
-    const noteSettings: NoteCreatorSettings = {
-        rootFolder: plugin.settings.journalRoot,
-        subFolder: plugin.settings.journalSubdir,
-        nameFormat: plugin.settings.journalNameFormat,
-        templatePath: plugin.settings.templatePath
-    };
-
     try {
-        await createOrUpdateNote(plugin.app, date, noteSettings, noteMetadata);
+        // Get the file and ensure it exists
+        const file = await waitForFile(plugin.app, notePath);
+        if (!file) {
+            throw new Error('Could not find file');
+        }
+
+        // Read the file content
+        const content = await plugin.app.vault.read(file);
+
+        let bodyContent = content;
+        let existingFrontmatter = {};
+
+        // Extract existing frontmatter if present
+        if (content.startsWith('---\n')) {
+            const endOfFrontmatter = content.indexOf('---\n', 4);
+            if (endOfFrontmatter !== -1) {
+                try {
+                    const frontmatterText = content.slice(4, endOfFrontmatter);
+                    existingFrontmatter = parseYaml(frontmatterText) || {};
+                    bodyContent = content.slice(endOfFrontmatter + 4);
+                } catch (e) {
+                    console.warn('Error parsing existing frontmatter:', e);
+                }
+            }
+        }
+
+        // Merge the existing frontmatter with weather properties
+        const updatedFrontmatter = {
+            ...existingFrontmatter,
+            ...selectedProperties
+        };
+
+        // Create the new content with updated frontmatter
+        const newContent = `---\n${stringifyYaml(updatedFrontmatter)}---\n\n${bodyContent.trim()}`;
+
+        // Write the updated content back to the file
+        await plugin.app.vault.modify(file, newContent);
+
+        // Wait for metadata cache to be ready
+        const metadataReady = await waitForMetadataCache(plugin.app, file);
+        if (!metadataReady) {
+            throw new Error('Could not verify metadata cache update');
+        }
+
+        new Notice('Weather data successfully added to note');
+
     } catch (error) {
-        console.error("Error creating or updating note:", error);
-        new Notice('Error creating or updating note');
+        console.error("Error updating note with weather data:", error);
+        new Notice('Error updating note with weather data');
+        throw error;
     }
 }
 
