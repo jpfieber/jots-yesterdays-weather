@@ -66,6 +66,22 @@ async function getOrCreateNote(plugin: YesterdaysWeatherPlugin, date: Date): Pro
 }
 
 /**
+ * Check if a note already has weather data
+ */
+function hasWeatherData(plugin: YesterdaysWeatherPlugin, file: TFile): boolean {
+    const cache = plugin.app.metadataCache.getFileCache(file);
+    if (!cache?.frontmatter) return false;
+
+    // Check for any enabled weather property
+    for (const [key, value] of Object.entries(plugin.settings.properties)) {
+        if (value.enabled && cache.frontmatter[value.name] !== undefined) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Fetch weather data for a specific date.
  * @param {YesterdaysWeatherPlugin} plugin - The plugin instance.
  * @param {Date} date - The date for which to fetch weather data.
@@ -82,6 +98,11 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
         // First create or get the note
         new Notice('Creating or getting note...');
         const file = await getOrCreateNote(plugin, date);
+
+        // Check if weather data already exists
+        if (hasWeatherData(plugin, file)) {
+            return; // Silently skip if weather data exists
+        }
 
         // Then fetch and add weather data separately
         new Notice('Fetching weather data...');
