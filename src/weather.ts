@@ -72,13 +72,19 @@ function hasWeatherData(plugin: YesterdaysWeatherPlugin, file: TFile): boolean {
     const cache = plugin.app.metadataCache.getFileCache(file);
     if (!cache?.frontmatter) return false;
 
-    // Check for any enabled weather property
-    for (const [key, value] of Object.entries(plugin.settings.properties)) {
-        if (value.enabled && cache.frontmatter[value.name] !== undefined) {
-            return true;
+    // Check for any enabled weather properties that we'd expect to exist
+    const criticalProperties = ['wtrtemp', 'wtrtempmax', 'wtrtempmin'];
+    for (const key of criticalProperties) {
+        if (plugin.settings.properties[key]?.enabled) {
+            const propName = plugin.settings.properties[key].name;
+            if (cache.frontmatter[propName] === undefined) {
+                return false;
+            }
         }
     }
-    return false;
+
+    // If we found all critical properties, assume weather data exists
+    return true;
 }
 
 /**
@@ -100,7 +106,7 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
         const file = await getOrCreateNote(plugin, date);
 
         // Check if weather data already exists
-        if (hasWeatherData(plugin, file)) {
+        if (await hasWeatherData(plugin, file)) {
             return; // Silently skip if weather data exists
         }
 
