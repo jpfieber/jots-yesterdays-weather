@@ -20,7 +20,7 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
 
         // API Key Setting
         new Setting(containerEl)
-            .setName('API Key')
+            .setName('API key')
             .setDesc(this.createApiKeyDescription())
             .addText((text: TextComponent) => text
                 .setPlaceholder('Enter API key')
@@ -30,26 +30,12 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        // Template Path Setting
-        new Setting(containerEl)
-            .setName('Template File Path')
-            .setDesc('Path to the template file (relative to vault root)')
-            .addSearch((cb: SearchComponent) => {
-                new FileSuggest(this.app, cb.inputEl);
-                cb.setPlaceholder("templates/daily-note.md")
-                    .setValue(this.plugin.settings.templatePath)
-                    .onChange((new_path: string) => {
-                        this.plugin.settings.templatePath = new_path;
-                        this.plugin.saveSettings();
-                    });
-            });
-
         // Location Setting
         new Setting(containerEl)
             .setName('Location')
-            .setDesc('Enter the location for which you want to fetch the weather.')
+            .setDesc('The address, partial address, US ZIP code or latitude,longitude location for which to retrieve weather data.')
             .addText((text: TextComponent) => text
-                .setPlaceholder('Enter location (e.g., city or zip code)')
+                .setPlaceholder('Enter location (e.g., city or ZIP code)')
                 .setValue(this.plugin.settings.location)
                 .onChange(async (value: string) => {
                     this.plugin.settings.location = value;
@@ -58,11 +44,11 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
 
         // Journal Root Setting
         new Setting(containerEl)
-            .setName('Journal Root')
-            .setDesc('Enter the root folder where the journal entries should be saved.')
+            .setName('Daily note location')
+            .setDesc('The root folder where the daily notes can be found.')
             .addSearch((cb: SearchComponent) => {
                 new FolderSuggest(this.app, cb.inputEl);
-                cb.setPlaceholder("Enter journal root folder")
+                cb.setPlaceholder("Enter daily note root folder")
                     .setValue(this.plugin.settings.journalRoot)
                     .onChange((new_folder: string) => {
                         new_folder = new_folder.trim();
@@ -75,10 +61,10 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
 
         // Journal Subdirectory Setting
         new Setting(containerEl)
-            .setName('Journal Subdirectory')
-            .setDesc('Enter the subdirectory structure using YYYY and YYYY-MM as placeholders for year and month (e.g., YYYY/YYYY-MM).')
+            .setName('Daily note subdirectory')
+            .setDesc('The subdirectory structure using 'YMD' notation (e.g., YYYY/YYYY-MM).')
             .addText((text: TextComponent) => text
-                .setPlaceholder('Enter journal subdirectory structure')
+                .setPlaceholder('Enter daily note subdirectory structure')
                 .setValue(this.plugin.settings.journalSubdir)
                 .onChange(async (value: string) => {
                     this.plugin.settings.journalSubdir = value;
@@ -87,19 +73,33 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
 
         // Journal Name Format Setting
         new Setting(containerEl)
-            .setName('Journal Name Format')
-            .setDesc('Enter the format for journal names (e.g., YYYY-MM-DD_DDD).')
+            .setName('Daily note name format')
+            .setDesc('The format for daily note names (e.g., YYYY-MM-DD_DDD).')
             .addText((text: TextComponent) => text
-                .setPlaceholder('Enter journal name format')
+                .setPlaceholder('Enter daily note name format')
                 .setValue(this.plugin.settings.journalNameFormat)
                 .onChange(async (value: string) => {
                     this.plugin.settings.journalNameFormat = value;
                     await this.plugin.saveSettings();
                 }));
 
+        // Template Path Setting
+        new Setting(containerEl)
+            .setName('Template file location')
+            .setDesc('Choose the file to use as a daily note template.')
+            .addSearch((cb: SearchComponent) => {
+                new FileSuggest(this.app, cb.inputEl);
+                cb.setPlaceholder("templates/daily-note.md")
+                    .setValue(this.plugin.settings.templatePath)
+                    .onChange((new_path: string) => {
+                        this.plugin.settings.templatePath = new_path;
+                        this.plugin.saveSettings();
+                    });
+            });
+
         // Run Time Setting
         new Setting(containerEl)
-            .setName('Run Time')
+            .setName('Run time')
             .setDesc('Enter the time (HH:MM) to run the plugin daily in 24-hour format (e.g., 13:30). Leave blank to run manually only.')
             .addText((text: TextComponent) => text
                 .setPlaceholder('Enter run time (HH:MM)')
@@ -115,11 +115,11 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
                 }, 1000)));
 
         // Specific Date Section
-        containerEl.createEl('h1', { text: 'Manually Add for Date' });
+        containerEl.createEl('h1', { text: 'Manually add for date' });
 
         new Setting(containerEl)
             .setName('Specific Date')
-            .setDesc('Enter a specific date to fetch the weather.')
+            .setDesc('The date to fetch the weather.')
             .addText((text: TextComponent) => {
                 text.inputEl.type = 'date'; // Use a date picker
                 text.setValue(this.plugin.settings.specificDate)
@@ -130,7 +130,7 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName('Fetch Weather for Specific Date')
+            .setName('Fetch weather for specific date')
             .setDesc('Click the button to fetch weather for the specified date.')
             .addButton((button: ButtonComponent) => {
                 button.setButtonText('Fetch Weather')
@@ -149,7 +149,7 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
             });
 
         // General Properties Section
-        containerEl.createEl('h1', { text: 'General Properties' });
+        containerEl.createEl('h1', { text: 'General properties' });
 
         for (const [key, value] of Object.entries(this.plugin.settings.generalProperties)) {
             new Setting(containerEl)
@@ -179,7 +179,7 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
         }
 
         // Weather Properties Section
-        containerEl.createEl('h1', { text: 'Weather Properties' });
+        containerEl.createEl('h1', { text: 'Weather properties' });
 
         for (const [key, value] of Object.entries(this.plugin.settings.properties)) {
             new Setting(containerEl)
