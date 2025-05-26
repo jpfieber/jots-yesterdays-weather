@@ -58,13 +58,17 @@
     color: var(--text-muted);
 }
 
-/* Buy Me a Coffee Section */
-.buy-me-a-coffee {
+/* Support Buttons Section */
+.buy-me-coffee {
     margin-top: 20px;
     text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
 }
 
-.bmc-button {
-    height: 60px;
-    width: 217px;
+.buy-me-coffee a {
+    display: inline-flex;
+    align-items: center;
 }
