@@ -98,27 +98,43 @@ export async function fetchWeatherForDate(plugin: YesterdaysWeatherPlugin, date:
         return;
     }
 
-    const dateString = getLocalDateString(date);
-
-    try {
+    const dateString = getLocalDateString(date); try {
         // First create or get the note
         new Notice('Creating or getting note...');
         const file = await getOrCreateNote(plugin, date);
 
         // Check if weather data already exists
         if (await hasWeatherData(plugin, file)) {
-            return; // Silently skip if weather data exists
+            new Notice('Weather data already exists for this date');
+            return;
         }
 
         // Then fetch and add weather data separately
         new Notice('Fetching weather data...');
         const apiUrl = `https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/${plugin.settings.location}/${dateString}/${dateString}?unitGroup=us&include=days&key=${plugin.settings.apiKey}&contentType=json`;
-        const response = await requestUrl({ url: apiUrl });
-        const weatherData = response.json;
 
-        await updateNoteWithWeatherData(plugin, file, weatherData);
-    } catch (error) {
+        try {
+            const response = await requestUrl({ url: apiUrl });
+            const weatherData = response.json;
+
+            if (!weatherData || !weatherData.days || !weatherData.days.length) {
+                throw new Error('No weather data available for this date');
+            }
+
+            await updateNoteWithWeatherData(plugin, file, weatherData);
+        } catch (apiError: any) {
+            // Handle specific API errors
+            if (apiError.status === 401 || apiError.status === 403) {
+                throw new Error('Invalid API key. Please check your Visual Crossing API key in settings.');
+            } else if (apiError.status === 429) {
+                throw new Error('API rate limit exceeded. Please try again later.');
+            } else {
+                throw apiError;
+            }
+        }
+    } catch (error: any) {
         console.error("Error in weather process:", error);
+        new Notice(error.message || 'Failed to complete the weather process. Check the console for details.');
         new Notice('Failed to complete the weather process. Check the console for details.');
     }
 }

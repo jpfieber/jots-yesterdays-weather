@@ -1,4 +1,4 @@
-import { Plugin } from 'obsidian';
+import { Plugin, Notice } from 'obsidian';
 import { scheduleDailyRun, fetchWeatherForDate } from './weather';
 import { YesterdaysWeatherSettingTab } from './settings';
 import { YesterdaysWeatherSettings, DEFAULT_SETTINGS } from './types';
@@ -22,28 +22,34 @@ export default class YesterdaysWeatherPlugin extends Plugin {
 
     scheduleDailyRun() {
         scheduleDailyRun(this);
-    }
+    } async onload() {
+        console.log('Yesterday\'s Weather: Loading plugin');
 
-    async onload() {
-        await this.loadSettings();
+        try {
+            await this.loadSettings();
 
-        // Register the command first for quick access
-        this.addCommand({
-            id: 'yesterdays-weather',
-            name: 'Fetch Yesterday\'s Weather',
-            callback: () => this.YesterdaysWeather()
-        });
+            // Register the command first for quick access
+            this.addCommand({
+                id: 'yesterdays-weather',
+                name: 'Fetch Yesterday\'s Weather',
+                callback: () => this.YesterdaysWeather()
+            });
 
-        // Add settings tab
-        this.addSettingTab(new YesterdaysWeatherSettingTab(this.app, this));
+            // Add settings tab
+            this.addSettingTab(new YesterdaysWeatherSettingTab(this.app, this));
 
-        // Schedule the daily run if configured
-        if (this.settings.runTime) {
-            this.scheduleDailyRun();
+            // Schedule the daily run if configured
+            if (this.settings.runTime) {
+                this.scheduleDailyRun();
+            }
+        } catch (error) {
+            console.error('Yesterday\'s Weather: Error loading plugin:', error);
+            new Notice('Error loading Yesterday\'s Weather plugin. Check the console for details.');
         }
     }
 
     onunload() {
+        console.log('Yesterday\'s Weather: Unloading plugin');
         this.dailyTimeout && clearTimeout(this.dailyTimeout);
         this.dailyInterval && clearInterval(this.dailyInterval);
         this.lastYesterdayDate = undefined;

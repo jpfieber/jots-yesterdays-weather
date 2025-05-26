@@ -1,11 +1,11 @@
 # Changelog
 All notable changes to this plugin will be documented in this file.
 
-## 1.0.13 (2025-05-26)
+## 1.0.14 (2025-05-26)
 
     - Optimized the code
     - Removed innerHTML calls
-    
+
 ## 1.0.11 (2025-04-13)
 
     - Fixed existing weather data validation

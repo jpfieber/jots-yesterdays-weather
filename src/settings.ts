@@ -154,15 +154,47 @@ export class YesterdaysWeatherSettingTab extends PluginSettingTab {
                 button.setButtonText('Fetch Weather')
                     .setCta()
                     .onClick(async () => {
-                        // Create the date using local date components to avoid timezone issues
-                        const [year, month, day] = this.plugin.settings.specificDate.split('-').map(Number);
-                        const date = new Date(year, month - 1, day, 12, 0, 0, 0); // month is 0-based in JS
+                        try {
+                            if (!this.plugin.settings.specificDate) {
+                                throw new Error("Please select a date first");
+                            }
 
-                        if (date.toString() === 'Invalid Date') {
-                            console.error("Invalid date format.");
+                            // Create the date using local date components to avoid timezone issues
+                            const [year, month, day] = this.plugin.settings.specificDate.split('-').map(Number);
+                            if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
+                                throw new Error("Invalid date components");
+                            }
+
+                            // Validate date range
+                            const date = new Date(year, month - 1, day, 12, 0, 0, 0); // month is 0-based in JS
+                            const now = new Date();
+                            if (date.toString() === 'Invalid Date') {
+                                throw new Error("Invalid date format");
+                            }
+                            if (date > now) {
+                                throw new Error("Cannot fetch weather data for future dates");
+                            }
+
+                            // Check if the date is too old (Visual Crossing typically limits historical data)
+                            const maxHistoricalDays = 365 * 2; // 2 years
+                            const oldestAllowedDate = new Date();
+                            oldestAllowedDate.setDate(oldestAllowedDate.getDate() - maxHistoricalDays);
+                            if (date < oldestAllowedDate) {
+                                throw new Error(`Weather data is only available for the past ${maxHistoricalDays} days`);
+                            }
+
+                            const oneYearAgo = new Date();
+                            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                            if (date < oneYearAgo) {
+                                throw new Error("Weather data is only available for the past year");
+                            }
+
+                            await fetchWeatherForDate(this.plugin, date);
+                        } catch (error) {
+                            console.error("Error fetching weather for specific date:", error);
+                            new Notice(`${error.message || 'Failed to fetch weather. Please enter a valid date in YYYY-MM-DD format.'}`);
                             return;
                         }
-                        await fetchWeatherForDate(this.plugin, date);
                     });
             });
 
